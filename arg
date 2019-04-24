@@ -1,4 +1,4 @@
-#!/usr/bin/python3  
+#!/usr/bin/python3
 '''
 Hypothetical command-line tool for searching a collection of
 files for one or more text patterns.

@@ -1,0 +1,137 @@
+#!/usr/bin/python3 
+# from predicateLogicConvert import PredicateLogicConvert
+# Convert general logic formula to FreeEnCal language
+
+import argparse
+import collections
+import re
+import os
+
+home='/home/eigeneko/hanabi'
+conf = os.path.join(home, 'Def_group')
+# 词法分析
+# 会把2nd拆分为2,nd 
+def tokenize(formula):
+    constant = {0}
+    predicate = {'Group'} #Predicate and Functions definitions
+    function = {}
+    Token = collections.namedtuple('Token', ['type', 'value', 'column'])
+
+    token_specification = [
+        ('NUMBER',   r'\d+(\.\d*)?'),  # Integer or decimal number
+        ('ASSIGN',   r':='),           # Assignment operator
+        # ('CONST',    r''),             # Constant 
+        ('PREDI',    r'∈⊆=•'),         # Predicate
+        # ('FUNC',     r='')
+        ('EOQ',      r'\]'),           # End of Quantifier
+        ('ID',       r'[A-Za-z]+'),    # Identifiers (variables)
+        ('OP',       r'[+\-*/\.]'),    # Arithmetic operators
+        ('SEP',      r'[\(\)]'),       # Seperator
+        ('SKIP',     r'[ \t]+'),       # Skip over spaces and tabs
+        ('SYMBOL',   r'.'),            # Any other character
+    ]
+    tok_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specification)
+    line_start = 0
+    for mo in re.finditer(tok_regex, formula):
+        kind = mo.lastgroup
+        value = mo.group()
+        column = mo.start() - line_start
+        if kind == 'NUMBER':
+            if value in constant:
+                value = 'CONST' 
+        elif kind == 'ID': 
+            if value in predicate:
+                kind = 'Predicate'
+            elif value in function: 
+                kind = 'Functions'
+            else:
+                kind = 'Varaible'
+        elif kind == 'SKIP':
+            continue
+        elif kind == 'SYMBOL':
+            pass
+        yield Token(kind, value, column)
+
+def infix2pre(file):
+
+    preLanguage = 'pre_' + file
+    fecLanguage = 'fec_' + file
+    formulaSet = []
+    out = open(preLanguage, 'wt')
+    with open(file, 'rt')as f:
+
+        for line in f:
+            queue = []
+            stack = []
+            tokens = [e for e in tokenize(line)]# 词法分析
+            formula =  [e.value for e in tokens]
+            formula.reverse()
+            print(formula)
+            for pos, elem in enumerate(formula):
+
+                if elem == ')':
+                    stack.append(elem)
+                elif elem == '(':
+                    while stack[-1] != ')':
+                        e = stack.pop()
+                        queue.append(e)
+                    stack.pop()
+                elif elem in ['⇒', '•', '=', '∧', '∈']:
+                    stack.append(elem)
+                # elif elem in ['G']:
+                    # queue.append('G(x)')
+                elif elem in ['x', 'y', 'z', 'u', 'a', 'b', 'c', 'd', 'e'] and formula[pos+1] in ['∃', '∀']:
+                    # treat ∃x ... as a whole part
+                    continue
+                elif elem in ['∃', '∀']:
+                    queue.append(formula[pos]+formula[pos-1])
+                else:
+                    queue.append(elem)
+
+            for i, char in enumerate(queue):
+                if char == ']':
+                    queue[i] = 'EOQ'
+            formulaSet.append(queue[::-1])
+            print(' '.join(queue[::-1]), file=out)
+        out.close()
+
+        # Read Definitions
+        defDict = dict() 
+        with open(conf, 'rt') as f:
+            for line in f:
+                x = line.split()
+                if not x or line[0] in ['#', '-']: 
+                    continue
+                defDict[x[0]] = x[1]
+
+        out = open(fecLanguage, 'wt')
+
+        # Convert to FreeEnCal Language
+        for formula in formulaSet:
+            print(formula)
+            result = []
+            for e in formula:
+                if e in defDict.keys():
+                    result.append(defDict[e])
+                else:
+                    result.append(e)
+            print(','.join(result), file=out)
+
+        out.close()
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        description='FreeEnCal Logic Fragments Convert')
+
+    parser.add_argument(dest='file', metavar='file', nargs=1,
+                        help='Convert the infix logic formulas to Fec language')
+    args = parser.parse_args()
+    filename = args.file[0]
+
+    infix2pre(filename)
+    # PLC = PredicateLogicConvert()
+    # PLC.polishOut = 'pre_test'
+    # PLC.infixOut = 'infix_test'
+    # PLC.infixConvert()

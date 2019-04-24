@@ -1,10 +1,12 @@
+#!/usr/bin/python3 
 import argparse
+import os
 
 class PredicateLogicConvert:
 
     def __init__(self):
-
-        self.conf = 'Def_group'
+        home='/home/eigeneko/hanabi'
+        self.conf = os.path.join(home, 'Def_group')
         self.readSymbol()
 
     def readSymbol(self):
@@ -18,7 +20,6 @@ class PredicateLogicConvert:
                 if not x or line[0] in ['#', '-']:
                     continue
                 self.symbols.append((x[0], x[1]))
-
 
 
     def convert(self, inputFile, withEOQ):
@@ -49,12 +50,14 @@ class PredicateLogicConvert:
                     continue
 
                 for symbol, string in self.symbols: 
+                    print(line)
                     line = line.replace(string, symbol)
               
                 # This should be put at last
                 if not withEOQ:
                     line = line.replace(",EOQ", "")
 
+                # To do, 使用正则表达式重写
                 line = line.replace(",", " ") #This will also remove , in f(x,y)
                 
                 line = line.replace("{x x}", "{x,x}")
@@ -92,8 +95,10 @@ class PredicateLogicConvert:
                 else:
                     stack   = []
                     while symbols:
-
+                        
                         cur = symbols[-1]
+                        print("stack:", stack)
+                        print("cur:", cur)
                         # Connectors
                         if cur in ["⇒", "∧"]:
                             stack.append("(" + stack.pop() + symbols.pop() + stack.pop() + ")")
@@ -135,8 +140,9 @@ class PredicateLogicConvert:
                             stack.append(symbols.pop().replace('z', stack.pop()).replace('x', stack.pop()).replace('y', stack.pop()))
                             
                              
-                        # Predicate
-                        elif cur in ['∈', '⊆', '=']:
+                        # Predicate 
+                        # ∈放在这里,只能处理a∈b的情况,(a•b)∈G 会出错,
+                        elif cur in ['⊆', '=']:
                             try:
                                 stack.append("(" + stack.pop() + symbols.pop() + stack.pop() + ")")
                             except Exception as e:
@@ -150,7 +156,7 @@ class PredicateLogicConvert:
         
                         # Variables
                         # Leave out brackets for ∀
-                        elif cur in ['∀x' , '∀y', '∀u', '∀z', '∃x', '∃y', '∃u', '∃z']:
+                        elif cur in ['∀x' , '∀y', '∀u', '∀z', '∃x', '∃y', '∃u', '∃z'] or cur in ['∀a', '∀b', '∀c', '∀d', '∃a', '∃b', '∃c', '∃d', '∃e']:
                             try:
                                 stack.append(symbols.pop() + stack.pop())
                             except Exception:

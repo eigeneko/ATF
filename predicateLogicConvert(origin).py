@@ -1,4 +1,4 @@
-    import argparse
+import argparse
 
 class PredicateLogicConvert:
 
@@ -13,7 +13,7 @@ class PredicateLogicConvert:
         self.symbols = dict()
 
     def nameConvert(self):
-
+        print(self.inputFile)
         out = open(self.nameOut, 'wt')
         with open(self.inputFile, 'rt') as f:
             for line in f:
