@@ -7,83 +7,61 @@ class PredicateLogicConvert:
     def __init__(self):
         home='/home/eigeneko/hanabi'
         self.conf = os.path.join(home, 'Def_group')
+        self.formulaSet = []
         self.readSymbol()
 
     def readSymbol(self):
-
-        self.symbols = list()
+        self.defDict = {}
         with open(self.conf, 'rt') as f:
-
             for line in f:
-
-                x = line.split()
                 if not x or line[0] in ['#', '-']:
                     continue
-                self.symbols.append((x[0], x[1]))
-
+                x = line.split()
+                fecLanguage = x[1]
+                logicLanguage = x[0]
+                self.defDict[fecLanguage] = logicLanguage
 
     def convert(self, inputFile, withEOQ):
-
-        
         self.inputFile = inputFile
         if withEOQ == True:
             # Generating polish with EOQ first.
-            self.polishOut = inputFile + "_EOQ"
+            self.polishOut = inputFile + "_polish_withEOQ"
             self.polishConvert(withEOQ=True)
-
         self.polishOut = inputFile + "_polish"
         self.infixOut  = inputFile + "_infix"
-        self.polishConvert()
-        self.infixConvert()
+        self.fecTranslate()
+        self.fecConvert()
 
-
-
-
-    def polishConvert(self, withEOQ=False):
-        
-        out = open(self.polishOut, 'wt')
+    # Translate FreeEnCal language to normal logical symbol
+    def fecTranslate(self, withEOQ=False):
+        '''withEOQ 表示转换后是否保留EOQ，默认为false，转换后不会保留'''
         with open(self.inputFile, 'rt') as f:
-            for line in f:
-                
+            out = open(self.polishOut, 'wt')
+            for line in f:                
                 if line.startswith('#'):
                     out.write(line)
+                    self.formulaSet.append(line)
                     continue
 
-                for symbol, string in self.symbols: 
-                    print(line)
-                    line = line.replace(string, symbol)
-              
-                # This should be put at last
-                if not withEOQ:
-                    line = line.replace(",EOQ", "")
+                formula = line.split(',')
+                for index, value in enumerate(formula):
+                    if value in self.defDict.keys():
+                        formula[index] = self.defDict[value]
+                    if value == "EOQ" and not withEOQ:
+                        del formula[index]
+                out.write(''.join(formula)) 
+                self.formulaSet.append(formula)
+            out.close()
 
-                # To do, 使用正则表达式重写
-                line = line.replace(",", " ") #This will also remove , in f(x,y)
-                
-                line = line.replace("{x x}", "{x,x}")
-                line = line.replace("<x y>", "<x,y>")
-                line = line.replace("restrict(xr x y)", "restrict(xr,x,y)")
-                line = line.replace("dom(z x y)", "dom(z,x,y)")
-                line = line.replace("ran(z x y)", "ran(z,x,y)")
-                line = line.replace("nothom1(xh xf xg)", "nothom1(xh,xf,xg)")
-                line = line.replace("nothom2(xh xf xg)", "nothom2(xh,xf,xg)")
-                line = line.replace("COMPATIBLE(x y z)", "COMPATIBLE(x,y,z)")
-                line = line.replace("HOM(x y z)", "HOM(x,y,z)")
-                
-
-
-
-                out.write(line) 
-        out.close()
-
-    def infixConvert(self):
-
+    # 对于一个FreeEnCal的输出文件进行转换，注意Degree部分是不需要转换的
+    
+    def fecConvert(self):
+        
         diction = ['#', 'InferenceRule', 'LogicalPremise', 'Degree', 'EliminationRule', 'EmpiricalPremise']
         nochange = False
-        out = open(self.infixOut, 'wt')
         with open(self.polishOut, 'rt') as f:
+            out = open(self.infixOut, 'wt')
             for line in f:
-
                 symbols = [e for e in line.split()]
                 if nochange == True or symbols[0] in diction:                
                     if symbols[0] == 'Degree':
@@ -166,7 +144,7 @@ class PredicateLogicConvert:
                             stack.append(symbols.pop())
 
                     out.write(" ".join(stack)+'\n')
-        out.close()        
+                    out.close()        
 
             
 if __name__ == "__main__":

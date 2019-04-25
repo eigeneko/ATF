@@ -52,12 +52,16 @@ def tokenize(formula):
             pass
         yield Token(kind, value, column)
 
-def infix2pre(file):
+# 中缀转前缀表达式
+# 不设定运算符的优先级，假定所有运算符优先级相同，通过括号决定运算顺序
+def infix2Polish(file):
 
+    formulaSet = []
+    defDict = {} 
     preLanguage = 'pre_' + file
     fecLanguage = 'fec_' + file
-    formulaSet = []
-    out = open(preLanguage, 'wt')
+
+    # Convert infix to Polish
     with open(file, 'rt')as f:
 
         for line in f:
@@ -65,58 +69,59 @@ def infix2pre(file):
             stack = []
             tokens = [e for e in tokenize(line)]# 词法分析
             formula =  [e.value for e in tokens]
-            formula.reverse()
-            print(formula)
-            for pos, elem in enumerate(formula):
-
-                if elem == ')':
+            # 从右往左遍历
+            formula.reverse() 
+            for pos, elem in enumerate(formula): 
+                if elem == ')': 
+                    # 遇到右括号，入栈
                     stack.append(elem)
-                elif elem == '(':
+
+                elif elem == '(': 
+                    # 遇到左括号，弹出
                     while stack[-1] != ')':
                         e = stack.pop()
                         queue.append(e)
                     stack.pop()
-                elif elem in ['⇒', '•', '=', '∧', '∈']:
+
+                elif elem in ['⇒', '•', '=', '∧', '∈']: 
+                    # 遇到二元操作符，入栈
                     stack.append(elem)
-                # elif elem in ['G']:
-                    # queue.append('G(x)')
+                
                 elif elem in ['x', 'y', 'z', 'u', 'a', 'b', 'c', 'd', 'e'] and formula[pos+1] in ['∃', '∀']:
-                    # treat ∃x ... as a whole part
+                    # treat ∃x ... as a whole part 排除f(x,y)的情况
                     continue
                 elif elem in ['∃', '∀']:
                     queue.append(formula[pos]+formula[pos-1])
                 else:
+                    if elem == ']':
+                        elem = 'EOQ'
                     queue.append(elem)
+            
+            queue.reverse()
+            formulaSet.append(queue)
+            out = open(preLanguage, 'wt')
+            print(' '.join(queue), file=out)
+            out.close()
 
-            for i, char in enumerate(queue):
-                if char == ']':
-                    queue[i] = 'EOQ'
-            formulaSet.append(queue[::-1])
-            print(' '.join(queue[::-1]), file=out)
-        out.close()
+    # Read Definitions
+    with open(conf, 'rt') as f:
+        for line in f:
+            x = line.split()
+            if not x or line[0] in ['#', '-']: 
+                continue
+            defDict[x[0]] = x[1]
 
-        # Read Definitions
-        defDict = dict() 
-        with open(conf, 'rt') as f:
-            for line in f:
-                x = line.split()
-                if not x or line[0] in ['#', '-']: 
-                    continue
-                defDict[x[0]] = x[1]
-
-        out = open(fecLanguage, 'wt')
-
-        # Convert to FreeEnCal Language
-        for formula in formulaSet:
-            print(formula)
-            result = []
-            for e in formula:
-                if e in defDict.keys():
-                    result.append(defDict[e])
-                else:
-                    result.append(e)
-            print(','.join(result), file=out)
-
+    # Convert to FreeEnCal Language
+    for formula in formulaSet:
+        print(formula)
+        result = []
+        for e in formula:
+            if e in defDict.keys():
+                result.append(defDict[e])
+            else:
+                result.append(e)
+        out = open(fecLanguage, 'wt')    
+        print(','.join(result), file=out)
         out.close()
 
 
@@ -130,8 +135,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     filename = args.file[0]
 
-    infix2pre(filename)
+    infix2Polish(filename)
     # PLC = PredicateLogicConvert()
-    # PLC.polishOut = 'pre_test'
-    # PLC.infixOut = 'infix_test'
-    # PLC.infixConvert()
